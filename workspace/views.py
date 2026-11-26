@@ -9,6 +9,7 @@ from workspace.forms import (
     AddMemberForm,
     ExperimentLogForm,
     PaperForm,
+    PaperImportForm,
     ResearchGroupForm,
     ResearchTaskForm,
 )
@@ -22,7 +23,9 @@ from workspace.services import (
     assign_tags_to_paper,
     create_group_with_admin,
     filter_papers_queryset,
+    import_paper_from_metadata,
     is_group_member,
+    parse_tag_names,
 )
 
 User = get_user_model()
@@ -126,6 +129,25 @@ def _handle_update_task_status(request, group: ResearchGroup):
     return redirect("group-detail", pk=group.pk)
 
 
+def _handle_import_paper(request, group: ResearchGroup):
+    """Process an external metadata import request for a research group."""
+    import_form = PaperImportForm(request.POST)
+    if import_form.is_valid():
+        try:
+            paper = import_paper_from_metadata(
+                group=group,
+                added_by=request.user,
+                source=import_form.cleaned_data["source"],
+                identifier=import_form.cleaned_data["identifier"],
+                tag_names=parse_tag_names(import_form.cleaned_data.get("tags", "")),
+            )
+            messages.success(request, f"Imported paper '{paper.title}'.")
+            return import_form, redirect("group-detail", pk=group.pk)
+        except ValueError as exc:
+            import_form.add_error("identifier", str(exc))
+    return import_form, None
+
+
 @login_required
 def group_detail_view(request, pk: int):
     """Display a research group's members, tasks, and searchable papers."""
@@ -137,6 +159,7 @@ def group_detail_view(request, pk: int):
     is_admin = membership.role == GroupMembership.Role.ADMIN
     member_form = AddMemberForm()
     paper_form = PaperForm()
+    import_form = PaperImportForm()
     task_form = ResearchTaskForm(group=group)
 
     if request.method == "POST":
@@ -151,6 +174,10 @@ def group_detail_view(request, pk: int):
                 return response
         elif action == "update_task_status":
             return _handle_update_task_status(request, group)
+        elif action == "import_paper":
+            import_form, response = _handle_import_paper(request, group)
+            if response is not None:
+                return response
         else:
             paper_form = PaperForm(request.POST, request.FILES)
             if paper_form.is_valid():
@@ -194,6 +221,7 @@ def group_detail_view(request, pk: int):
             "available_tags": available_tags,
             "member_form": member_form,
             "paper_form": paper_form,
+            "import_form": import_form,
             "task_form": task_form,
             "search_query": search_query,
             "tag_query": tag_query,
