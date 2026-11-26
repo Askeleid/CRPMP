@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - "feat/**"
+      - "test/**"
   pull_request:
     branches:
       - main
@@ -31,5 +32,8 @@ jobs:
       - name: Run Django system checks
         run: python manage.py check
 
-      - name: Run pytest with coverage
-        run: pytest --cov
+      - name: Validate OpenAPI schema
+        run: python manage.py spectacular --validate
+
+      - name: Run full test suite with coverage
+        run: python -m pytest -p no:cacheprovider --cov
