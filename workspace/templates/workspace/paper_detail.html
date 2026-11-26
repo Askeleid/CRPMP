@@ -4,37 +4,37 @@
 
 {% block content %}
 <div class="mb-4">
-  <a href="{% url 'group-detail' paper.group.id %}" class="text-decoration-none">
+  <a href="{% url 'group-detail' paper.group.id %}" class="text-decoration-none small fw-medium">
     &larr; Back to {{ paper.group.name }}
   </a>
-  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mt-2">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mt-2">
     <div>
-      <h1 class="h3 mb-1">{{ paper.title }}</h1>
-      <p class="text-muted mb-1">{{ paper.authors }}</p>
+      <h1 class="h3 fw-bold mb-1">{{ paper.title }}</h1>
+      <p class="text-muted mb-0">{{ paper.authors }}</p>
     </div>
-    <span class="badge bg-dark fs-6">{{ paper.year }}</span>
+    <span class="ws-mono-badge fs-6">{{ paper.year }}</span>
   </div>
 </div>
 
-<div class="row g-4">
-  <!-- Left Column: Paper Metadata & Add Experiment Log -->
+<div class="row g-4 align-items-start">
+  <!-- Left Column: Paper Metadata, Citation Exporter & Add Experiment Log -->
   <div class="col-lg-5">
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-white">
-        <h2 class="h5 mb-0">Paper Details</h2>
+    <div class="card mb-4">
+      <div class="card-header">
+        <h2 class="h6 fw-semibold mb-0">Paper Details</h2>
       </div>
-      <div class="card-body">
+      <div class="card-body p-4">
         {% if paper.abstract %}
-          <p class="card-text">{{ paper.abstract }}</p>
+          <p class="card-text small text-secondary mb-3">{{ paper.abstract }}</p>
         {% else %}
-          <p class="text-muted fst-italic">No abstract provided.</p>
+          <p class="text-muted fst-italic small mb-3">No abstract provided.</p>
         {% endif %}
 
         <div class="d-flex flex-wrap gap-2 mb-3">
           {% for tag in paper.tags.all %}
             <a
               href="{% url 'group-detail' paper.group.id %}?tag={{ tag.name|urlencode }}"
-              class="badge text-bg-info text-decoration-none"
+              class="ws-tag-pill"
             >
               #{{ tag.name }}
             </a>
@@ -43,43 +43,43 @@
           {% endfor %}
         </div>
 
-        <dl class="row small mb-0">
+        <dl class="row small mb-0 pt-2 border-top">
           <dt class="col-sm-4 text-muted">Group</dt>
-          <dd class="col-sm-8">{{ paper.group.name }}</dd>
+          <dd class="col-sm-8 fw-medium">{{ paper.group.name }}</dd>
 
           <dt class="col-sm-4 text-muted">Added by</dt>
           <dd class="col-sm-8">{{ paper.added_by.username }}</dd>
 
           {% if paper.doi %}
             <dt class="col-sm-4 text-muted">DOI</dt>
-            <dd class="col-sm-8">{{ paper.doi }}</dd>
+            <dd class="col-sm-8"><span class="ws-mono-badge">{{ paper.doi }}</span></dd>
           {% endif %}
 
           {% if paper.arxiv_id %}
             <dt class="col-sm-4 text-muted">arXiv ID</dt>
-            <dd class="col-sm-8">{{ paper.arxiv_id }}</dd>
+            <dd class="col-sm-8"><span class="ws-mono-badge">{{ paper.arxiv_id }}</span></dd>
           {% endif %}
 
           {% if paper.url %}
             <dt class="col-sm-4 text-muted">External Link</dt>
             <dd class="col-sm-8">
-              <a href="{{ paper.url }}" target="_blank" rel="noopener">{{ paper.url }}</a>
+              <a href="{{ paper.url }}" target="_blank" rel="noopener" class="text-break">{{ paper.url }}</a>
             </dd>
           {% endif %}
 
           {% if paper.pdf_file %}
             <dt class="col-sm-4 text-muted">PDF</dt>
             <dd class="col-sm-8">
-              <a href="{{ paper.pdf_file.url }}" target="_blank" rel="noopener">Download PDF</a>
+              <a href="{{ paper.pdf_file.url }}" target="_blank" rel="noopener" class="fw-medium">Download PDF</a>
             </dd>
           {% endif %}
         </dl>
       </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <h2 class="h5 mb-0">Cite Paper</h2>
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h2 class="h6 fw-semibold mb-0">Cite Paper</h2>
         <form method="get" class="d-flex align-items-center gap-2">
           <select
             name="cite_format"
@@ -96,23 +96,24 @@
           <button type="submit" class="btn btn-outline-primary btn-sm">Format</button>
         </form>
       </div>
-      <div class="card-body">
-        <pre class="bg-dark text-light p-3 rounded mb-2 small overflow-auto"><code id="citation-text">{{ citation }}</code></pre>
+      <div class="card-body p-4">
+        <pre class="ws-citation-block mb-3"><code id="citation-text">{{ citation }}</code></pre>
         <button
           type="button"
-          class="btn btn-outline-secondary btn-sm"
-          onclick="navigator.clipboard.writeText(document.getElementById('citation-text').innerText)"
+          id="copy-citation-btn"
+          class="btn btn-outline-primary btn-sm"
+          onclick="copyCitation(this)"
         >
           Copy Citation
         </button>
       </div>
     </div>
 
-    <div class="card shadow-sm">
-      <div class="card-header bg-white">
-        <h2 class="h5 mb-0">Add Experiment Log</h2>
+    <div class="card">
+      <div class="card-header">
+        <h2 class="h6 fw-semibold mb-0">Add Experiment Log</h2>
       </div>
-      <div class="card-body">
+      <div class="card-body p-4">
         <form method="post">
           {% csrf_token %}
           {% for field in log_form %}
@@ -132,34 +133,69 @@
 
   <!-- Right Column: Experiment Logs Timeline -->
   <div class="col-lg-7">
-    <h2 class="h4 mb-3">Experiment Logs ({{ experiment_logs|length }})</h2>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h5 fw-bold mb-0">Experiment Logs</h2>
+      <span class="ws-mono-badge">{{ experiment_logs|length }} entr{{ experiment_logs|length|pluralize:"y,ies" }}</span>
+    </div>
 
     {% if experiment_logs %}
       <div class="d-flex flex-column gap-3">
         {% for log in experiment_logs %}
-          <div class="card shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-              <h3 class="h5 mb-0">{{ log.title }}</h3>
-              <small class="text-muted">{{ log.author.username }} &middot; {{ log.logged_at|date:"Y-m-d H:i" }}</small>
+          <div class="card ws-timeline-card">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <h3 class="h6 fw-semibold mb-0">{{ log.title }}</h3>
+              <div class="d-flex align-items-center gap-2">
+                <span class="ws-pill ws-pill-slate">{{ log.author.username }}</span>
+                <small class="text-muted font-mono">{{ log.logged_at|date:"Y-m-d H:i" }}</small>
+              </div>
             </div>
-            <div class="card-body">
-              <p class="mb-2"><strong>Hypothesis:</strong> {{ log.hypothesis }}</p>
+            <div class="card-body p-4">
+              <div class="mb-3">
+                <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.04em;">Hypothesis</div>
+                <p class="mb-0 small">{{ log.hypothesis }}</p>
+              </div>
               {% if log.parameters %}
-                <p class="mb-2">
-                  <strong>Parameters:</strong>
-                  <code class="text-dark">{{ log.parameters }}</code>
-                </p>
+                <div class="mb-3">
+                  <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.04em;">Parameters</div>
+                  <code class="d-block bg-light border rounded px-3 py-2 small text-dark">{{ log.parameters }}</code>
+                </div>
               {% endif %}
-              <p class="mb-0"><strong>Result Summary:</strong> {{ log.result_summary }}</p>
+              <div>
+                <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.04em;">Result Summary</div>
+                <p class="mb-0 small">{{ log.result_summary }}</p>
+              </div>
             </div>
           </div>
         {% endfor %}
       </div>
     {% else %}
-      <div class="alert alert-secondary">
-        No experiment logs recorded for this paper yet. Use the form on the left to add one.
+      <div class="card">
+        <div class="card-body p-4 text-center text-muted small">
+          No experiment logs recorded for this paper yet. Use the form on the left to add one.
+        </div>
       </div>
     {% endif %}
   </div>
 </div>
+
+<script>
+  function copyCitation(btn) {
+    const text = document.getElementById("citation-text").innerText;
+    const showCopied = () => {
+      btn.textContent = "Copied!";
+      btn.classList.remove("btn-outline-primary");
+      btn.classList.add("btn-success");
+      setTimeout(() => {
+        btn.textContent = "Copy Citation";
+        btn.classList.remove("btn-success");
+        btn.classList.add("btn-outline-primary");
+      }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(showCopied).catch(showCopied);
+    } else {
+      showCopied();
+    }
+  }
+</script>
 {% endblock %}

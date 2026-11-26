@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
+from django.db.models import Count, OuterRef, Subquery
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -74,8 +75,17 @@ def dashboard_view(request):
     else:
         form = ResearchGroupForm()
 
+    user_role_subquery = GroupMembership.objects.filter(
+        group=OuterRef("pk"), user=request.user
+    ).values("role")[:1]
     groups = (
         ResearchGroup.objects.filter(memberships__user=request.user)
+        .select_related("created_by")
+        .annotate(
+            member_count=Count("memberships", distinct=True),
+            paper_count=Count("papers", distinct=True),
+            user_role=Subquery(user_role_subquery),
+        )
         .distinct()
         .order_by("-created_at")
     )
