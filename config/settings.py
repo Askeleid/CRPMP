@@ -78,6 +78,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "workspace.context_processors.notifications_context",
             ],
         },
     },
@@ -160,7 +161,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Workspace API",
-    "DESCRIPTION": "API documentation for the Django REST Framework workspace service for metadata import.",
+    "DESCRIPTION": "API documentation for the Django REST Framework workspace service for metadata import and observer notifications.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }

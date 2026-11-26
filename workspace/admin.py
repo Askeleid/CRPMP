@@ -3,6 +3,7 @@ from django.contrib import admin
 from workspace.models import (
     ExperimentLog,
     GroupMembership,
+    Notification,
     Paper,
     ResearchGroup,
     ResearchTask,
@@ -47,3 +48,10 @@ class ExperimentLogAdmin(admin.ModelAdmin):
     list_display = ("id", "title", "paper", "author", "logged_at")
     list_filter = ("paper",)
     search_fields = ("title", "hypothesis", "result_summary")
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("id", "recipient", "group", "message", "is_read", "created_at")
+    list_filter = ("is_read", "group")
+    search_fields = ("message", "recipient__username")

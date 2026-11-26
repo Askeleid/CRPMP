@@ -12,6 +12,7 @@ from workspace.models import (
     Tag,
 )
 from workspace.patterns.metadata import get_metadata_adapter
+from workspace.patterns.observers import get_default_publisher
 
 
 def is_group_member(group: ResearchGroup, user) -> bool:
@@ -156,4 +157,37 @@ def import_paper_from_metadata(
         )
         if tag_names:
             assign_tags_to_paper(paper, tag_names)
+    notify_paper_added(paper, added_by)
     return paper
+
+
+def notify_paper_added(paper: Paper, actor) -> None:
+    """Publish a notification event when a paper is added to a group."""
+    actor_name = getattr(actor, "username", "Someone")
+    message = f"{actor_name} added paper '{paper.title}' to {paper.group.name}."
+    get_default_publisher().notify("paper_added", paper.group, actor, message)
+
+
+def notify_task_created(task: ResearchTask, actor) -> None:
+    """Publish a notification event when a research task is created."""
+    actor_name = getattr(actor, "username", "Someone")
+    if task.assigned_to is not None:
+        message = (
+            f"{actor_name} created task '{task.title}' "
+            f"(assigned to {task.assigned_to.username}) in {task.group.name}."
+        )
+    else:
+        message = f"{actor_name} created task '{task.title}' in {task.group.name}."
+    get_default_publisher().notify("task_created", task.group, actor, message)
+
+
+def notify_task_assigned(task: ResearchTask, actor) -> None:
+    """Publish a notification event when a research task is assigned."""
+    if task.assigned_to is None:
+        return
+    actor_name = getattr(actor, "username", "Someone")
+    message = (
+        f"{actor_name} assigned task '{task.title}' "
+        f"to {task.assigned_to.username} in {task.group.name}."
+    )
+    get_default_publisher().notify("task_assigned", task.group, actor, message)

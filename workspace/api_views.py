@@ -13,15 +13,17 @@ from rest_framework.views import APIView
 from workspace.models import (
     ExperimentLog,
     GroupMembership,
+    Notification,
     Paper,
     ResearchGroup,
     ResearchTask,
 )
 from workspace.patterns.citations import CitationExporter, get_citation_strategy
-from workspace.permissions import IsGroupMember
+from workspace.permissions import IsGroupMember, IsNotificationRecipient
 from workspace.serializers import (
     ExperimentLogSerializer,
     HealthCheckSerializer,
+    NotificationSerializer,
     PaperCitationSerializer,
     PaperImportMetadataSerializer,
     PaperSerializer,
@@ -34,6 +36,9 @@ from workspace.services import (
     filter_tasks_queryset,
     import_paper_from_metadata,
     is_group_member,
+    notify_paper_added,
+    notify_task_assigned,
+    notify_task_created,
 )
 
 
@@ -212,7 +217,8 @@ class PaperViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         self._ensure_group_membership(serializer.validated_data["group"])
-        serializer.save(added_by=self.request.user)
+        paper = serializer.save(added_by=self.request.user)
+        notify_paper_added(paper, self.request.user)
 
     def perform_update(self, serializer):
         target_group = serializer.validated_data.get(
@@ -377,14 +383,18 @@ class ResearchTaskViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         self._ensure_group_membership(serializer.validated_data["group"])
-        serializer.save()
+        task = serializer.save()
+        notify_task_created(task, self.request.user)
 
     def perform_update(self, serializer):
         target_group = serializer.validated_data.get(
             "group", serializer.instance.group
         )
         self._ensure_group_membership(target_group)
-        serializer.save()
+        previous_assignee_id = serializer.instance.assigned_to_id
+        task = serializer.save()
+        if task.assigned_to_id and task.assigned_to_id != previous_assignee_id:
+            notify_task_assigned(task, self.request.user)
 
 
 @extend_schema_view(
@@ -467,3 +477,45 @@ class ExperimentLogViewSet(viewsets.ModelViewSet):
         )
         self._ensure_paper_group_membership(target_paper)
         serializer.save()
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List Notifications",
+        description="List in-app notifications for the authenticated user.",
+        tags=["Notifications"],
+    ),
+    retrieve=extend_schema(
+        summary="Retrieve Notification",
+        description="Retrieve a specific notification belonging to the authenticated user.",
+        tags=["Notifications"],
+    ),
+)
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    """REST API endpoints for reading and acknowledging user Notifications."""
+
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated, IsNotificationRecipient]
+
+    def get_queryset(self):
+        base_qs = Notification.objects.select_related("group").order_by("-created_at")
+        if self.action == "list":
+            return base_qs.filter(recipient=self.request.user)
+        return base_qs
+
+    @extend_schema(
+        summary="Mark Notification as Read",
+        description="Mark a specific notification as read.",
+        request=None,
+        responses={200: NotificationSerializer},
+        tags=["Notifications"],
+    )
+    @action(detail=True, methods=["post"], url_path="mark-read")
+    def mark_read(self, request: Request, pk=None) -> Response:
+        """Mark the target notification as read."""
+        notification = self.get_object()
+        if not notification.is_read:
+            notification.is_read = True
+            notification.save(update_fields=["is_read"])
+        serializer = self.get_serializer(notification)
+        return Response(serializer.data, status=status.HTTP_200_OK)

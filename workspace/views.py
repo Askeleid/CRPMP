@@ -13,7 +13,14 @@ from workspace.forms import (
     ResearchGroupForm,
     ResearchTaskForm,
 )
-from workspace.models import GroupMembership, Paper, ResearchGroup, ResearchTask, Tag
+from workspace.models import (
+    GroupMembership,
+    Notification,
+    Paper,
+    ResearchGroup,
+    ResearchTask,
+    Tag,
+)
 from workspace.patterns.citations import (
     CITATION_FORMATS,
     CitationExporter,
@@ -25,6 +32,8 @@ from workspace.services import (
     filter_papers_queryset,
     import_paper_from_metadata,
     is_group_member,
+    notify_paper_added,
+    notify_task_created,
     parse_tag_names,
 )
 
@@ -111,6 +120,7 @@ def _handle_add_task(request, group: ResearchGroup):
         task = task_form.save(commit=False)
         task.group = group
         task.save()
+        notify_task_created(task, request.user)
         messages.success(request, f"Added task '{task.title}'.")
         return task_form, redirect("group-detail", pk=group.pk)
     return task_form, None
@@ -186,6 +196,7 @@ def group_detail_view(request, pk: int):
                 paper.added_by = request.user
                 paper.save()
                 assign_tags_to_paper(paper, paper_form.cleaned_data.get("tags", ""))
+                notify_paper_added(paper, request.user)
                 messages.success(request, f"Added paper '{paper.title}'.")
                 return redirect("group-detail", pk=group.pk)
 
@@ -276,3 +287,16 @@ def paper_detail_view(request, paper_id: int):
             "citation_formats": CITATION_FORMATS,
         },
     )
+
+
+@login_required
+def mark_notification_read_view(request, notification_id: int):
+    """Mark an authenticated user's notification as read via POST."""
+    if request.method == "POST":
+        notification = get_object_or_404(
+            Notification, pk=notification_id, recipient=request.user
+        )
+        notification.is_read = True
+        notification.save(update_fields=["is_read"])
+    next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or "dashboard"
+    return redirect(next_url)
