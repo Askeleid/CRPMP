@@ -23,6 +23,7 @@ from workspace.serializers import (
     ExperimentLogSerializer,
     HealthCheckSerializer,
     PaperCitationSerializer,
+    PaperImportMetadataSerializer,
     PaperSerializer,
     ResearchGroupSerializer,
     ResearchTaskSerializer,
@@ -31,6 +32,7 @@ from workspace.services import (
     filter_experiment_logs_queryset,
     filter_papers_queryset,
     filter_tasks_queryset,
+    import_paper_from_metadata,
     is_group_member,
 )
 
@@ -260,6 +262,39 @@ class PaperViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+    @extend_schema(
+        summary="Import Paper from Metadata",
+        description=(
+            "Fetch paper metadata from arXiv or CrossRef and create a Paper "
+            "inside the specified research group."
+        ),
+        request=PaperImportMetadataSerializer,
+        responses={201: PaperSerializer},
+        tags=["Papers"],
+    )
+    @action(detail=False, methods=["post"], url_path="import-metadata")
+    def import_metadata(self, request: Request) -> Response:
+        """Import a paper using an external metadata provider."""
+        serializer = PaperImportMetadataSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        group = serializer.validated_data["group"]
+        self._ensure_group_membership(group)
+
+        try:
+            paper = import_paper_from_metadata(
+                group=group,
+                added_by=request.user,
+                source=serializer.validated_data["source"],
+                identifier=serializer.validated_data["identifier"],
+                tag_names=serializer.validated_data.get("tags", []),
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        output = PaperSerializer(paper, context={"request": request})
+        return Response(output.data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema_view(

@@ -11,6 +11,7 @@ from workspace.models import (
     ResearchTask,
     Tag,
 )
+from workspace.patterns.metadata import get_metadata_adapter
 
 
 def is_group_member(group: ResearchGroup, user) -> bool:
@@ -130,3 +131,29 @@ def filter_experiment_logs_queryset(
             pass
 
     return queryset
+
+
+def import_paper_from_metadata(
+    group: ResearchGroup,
+    added_by,
+    source: str,
+    identifier: str,
+    tag_names: list[str] | None = None,
+) -> Paper:
+    """Fetch normalized metadata from an external source and create a Paper."""
+    metadata = get_metadata_adapter(source).fetch(identifier)
+    with transaction.atomic():
+        paper = Paper.objects.create(
+            group=group,
+            added_by=added_by,
+            title=metadata["title"],
+            authors=metadata["authors"],
+            year=metadata["year"],
+            doi=metadata["doi"],
+            arxiv_id=metadata["arxiv_id"],
+            url=metadata["url"],
+            abstract=metadata["abstract"],
+        )
+        if tag_names:
+            assign_tags_to_paper(paper, tag_names)
+    return paper

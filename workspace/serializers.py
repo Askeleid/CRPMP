@@ -154,3 +154,12 @@ class PaperCitationSerializer(serializers.Serializer):
     paper_id = serializers.IntegerField()
     format = serializers.CharField()
     citation = serializers.CharField()
+
+
+class PaperImportMetadataSerializer(serializers.Serializer):
+    """Serializer for importing a paper from arXiv or CrossRef metadata."""
+
+    group = serializers.PrimaryKeyRelatedField(queryset=ResearchGroup.objects.all())
+    source = serializers.CharField(max_length=50)
+    identifier = serializers.CharField(max_length=255)
+    tags = TagListField(required=False, default=list)

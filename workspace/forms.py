@@ -86,6 +86,38 @@ class PaperForm(forms.ModelForm):
         }
 
 
+class PaperImportForm(forms.Form):
+    """Form for importing a paper via arXiv ID or CrossRef DOI."""
+
+    SOURCE_CHOICES = [
+        ("arxiv", "arXiv"),
+        ("crossref", "CrossRef (DOI)"),
+    ]
+
+    source = forms.ChoiceField(
+        choices=SOURCE_CHOICES,
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    identifier = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "e.g., 1706.03762 or 10.1145/3295222.3295349",
+            }
+        ),
+    )
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "nlp, transformers",
+            }
+        ),
+    )
+
+
 class ResearchTaskForm(forms.ModelForm):
     """Form for creating a research task within a research group."""
 
