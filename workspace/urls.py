@@ -4,6 +4,7 @@ from django.urls import path
 from workspace.views import (
     dashboard_view,
     group_detail_view,
+    mark_notification_read_view,
     paper_detail_view,
     register_view,
 )
@@ -19,4 +20,9 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("groups/<int:pk>/", group_detail_view, name="group-detail"),
     path("papers/<int:paper_id>/", paper_detail_view, name="paper-detail"),
+    path(
+        "notifications/<int:notification_id>/mark-read/",
+        mark_notification_read_view,
+        name="notification-mark-read",
+    ),
 ]

@@ -2,7 +2,13 @@ from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from workspace.models import ExperimentLog, Paper, ResearchGroup, ResearchTask
+from workspace.models import (
+    ExperimentLog,
+    Notification,
+    Paper,
+    ResearchGroup,
+    ResearchTask,
+)
 from workspace.services import assign_tags_to_paper, is_group_member
 
 
@@ -163,3 +169,25 @@ class PaperImportMetadataSerializer(serializers.Serializer):
     source = serializers.CharField(max_length=50)
     identifier = serializers.CharField(max_length=255)
     tags = TagListField(required=False, default=list)
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """Serializer for in-app Notification records."""
+
+    class Meta:
+        model = Notification
+        fields = [
+            "id",
+            "recipient",
+            "group",
+            "message",
+            "is_read",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "recipient",
+            "group",
+            "message",
+            "created_at",
+        ]

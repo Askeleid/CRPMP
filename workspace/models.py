@@ -157,3 +157,26 @@ class ExperimentLog(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class Notification(models.Model):
+    """In-app notification delivered to a group member on workspace activity."""
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    group = models.ForeignKey(
+        ResearchGroup,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notifications",
+    )
+    message = models.CharField(max_length=255)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"Notification for {self.recipient}: {self.message[:40]}"
