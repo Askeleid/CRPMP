@@ -333,3 +333,60 @@ def test_api_tasks_and_experiment_logs_endpoints(api_client, group_with_paper):
     assert schema_resp.status_code == 200
     assert b"/api/tasks/" in schema_resp.content
     assert b"/api/experiment-logs/" in schema_resp.content
+
+
+@pytest.mark.django_db
+def test_task_assignee_must_be_group_member(client, api_client, group_with_paper):
+    from workspace.forms import ResearchTaskForm
+    from workspace.models import ResearchTask
+
+    alice = group_with_paper["alice"]
+    bob = group_with_paper["bob"]
+    outsider = group_with_paper["outsider"]
+    group = group_with_paper["group"]
+
+    # Form queryset excludes non-members and validation rejects non-member assignment
+    form = ResearchTaskForm(
+        data={"title": "Invalid task", "assigned_to": outsider.id},
+        group=group,
+    )
+    assert not form.is_valid()
+    assert "assigned_to" in form.errors
+    assert outsider not in form.fields["assigned_to"].queryset
+    assert bob in form.fields["assigned_to"].queryset
+
+    # Web UI POST with non-member assignee does not create a task
+    client.force_login(alice)
+    ui_resp = client.post(
+        reverse("group-detail", args=[group.id]),
+        {
+            "action": "add_task",
+            "title": "UI non-member task",
+            "assigned_to": outsider.id,
+        },
+    )
+    assert ui_resp.status_code == 200
+    assert not ResearchTask.objects.filter(title="UI non-member task").exists()
+
+    # API POST and PATCH reject non-member assignee with HTTP 400
+    api_client.force_authenticate(user=alice)
+    api_create_resp = api_client.post(
+        "/api/tasks/",
+        {
+            "group": group.id,
+            "title": "API non-member task",
+            "assigned_to": outsider.id,
+        },
+        format="json",
+    )
+    assert api_create_resp.status_code == 400
+    assert "assigned_to" in api_create_resp.data
+
+    valid_task = ResearchTask.objects.create(group=group, title="Valid task")
+    api_patch_resp = api_client.patch(
+        f"/api/tasks/{valid_task.id}/",
+        {"assigned_to": outsider.id},
+        format="json",
+    )
+    assert api_patch_resp.status_code == 400
+    assert "assigned_to" in api_patch_resp.data

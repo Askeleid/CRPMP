@@ -3,7 +3,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from workspace.models import ExperimentLog, Paper, ResearchGroup, ResearchTask
-from workspace.services import assign_tags_to_paper
+from workspace.services import assign_tags_to_paper, is_group_member
 
 
 class HealthCheckSerializer(serializers.Serializer):
@@ -95,11 +95,35 @@ class ResearchTaskSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def validate(self, attrs):
-        group = attrs.get("group") or getattr(self.instance, "group", None)
-        paper = attrs.get("paper")
+        group = attrs.get("group") or (
+            self.instance.group if self.instance is not None else None
+        )
+        paper = (
+            attrs["paper"]
+            if "paper" in attrs
+            else getattr(self.instance, "paper", None)
+        )
         if paper is not None and group is not None and paper.group_id != group.id:
             raise serializers.ValidationError(
                 {"paper": "Paper must belong to the same research group as the task."}
+            )
+
+        assigned_to = (
+            attrs["assigned_to"]
+            if "assigned_to" in attrs
+            else getattr(self.instance, "assigned_to", None)
+        )
+        if (
+            assigned_to is not None
+            and group is not None
+            and not is_group_member(group, assigned_to)
+        ):
+            raise serializers.ValidationError(
+                {
+                    "assigned_to": (
+                        "Assignee must be a member of the task's research group."
+                    )
+                }
             )
         return attrs
 
