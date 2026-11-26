@@ -2,7 +2,7 @@ from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from workspace.models import Paper, ResearchGroup
+from workspace.models import ExperimentLog, Paper, ResearchGroup, ResearchTask
 from workspace.services import assign_tags_to_paper
 
 
@@ -74,3 +74,51 @@ class PaperSerializer(serializers.ModelSerializer):
             if tag_names is not None:
                 assign_tags_to_paper(paper, tag_names)
         return paper
+
+
+class ResearchTaskSerializer(serializers.ModelSerializer):
+    """Serializer for ResearchTask records."""
+
+    class Meta:
+        model = ResearchTask
+        fields = [
+            "id",
+            "group",
+            "paper",
+            "title",
+            "description",
+            "assigned_to",
+            "status",
+            "due_date",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def validate(self, attrs):
+        group = attrs.get("group") or getattr(self.instance, "group", None)
+        paper = attrs.get("paper")
+        if paper is not None and group is not None and paper.group_id != group.id:
+            raise serializers.ValidationError(
+                {"paper": "Paper must belong to the same research group as the task."}
+            )
+        return attrs
+
+
+class ExperimentLogSerializer(serializers.ModelSerializer):
+    """Serializer for ExperimentLog entries linked to a Paper."""
+
+    author = serializers.ReadOnlyField(source="author.username")
+
+    class Meta:
+        model = ExperimentLog
+        fields = [
+            "id",
+            "paper",
+            "author",
+            "title",
+            "hypothesis",
+            "parameters",
+            "result_summary",
+            "logged_at",
+        ]
+        read_only_fields = ["id", "author", "logged_at"]

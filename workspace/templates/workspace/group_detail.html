@@ -137,7 +137,11 @@
           <div class="card shadow-sm">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start gap-2">
-                <h3 class="h5 card-title mb-1">{{ paper.title }}</h3>
+                <h3 class="h5 card-title mb-1">
+                  <a href="{% url 'paper-detail' paper.id %}" class="text-decoration-none">
+                    {{ paper.title }}
+                  </a>
+                </h3>
                 <span class="badge bg-dark">{{ paper.year }}</span>
               </div>
               <p class="text-muted mb-2">{{ paper.authors }}</p>
@@ -175,6 +179,103 @@
       </div>
     {% else %}
       <div class="alert alert-secondary">No papers found matching your criteria.</div>
+    {% endif %}
+
+    <!-- Research Tasks Section -->
+    <hr class="my-4" />
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h4 mb-0">Research Tasks ({{ tasks|length }})</h2>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white">
+        <h3 class="h6 mb-0">Create Research Task</h3>
+      </div>
+      <div class="card-body">
+        <form method="post" class="row g-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_task" />
+          <div class="col-md-6">
+            <label for="{{ task_form.title.id_for_label }}" class="form-label">Title</label>
+            {{ task_form.title }}
+            {% for error in task_form.title.errors %}
+              <div class="text-danger small mt-1">{{ error }}</div>
+            {% endfor %}
+          </div>
+          <div class="col-md-6">
+            <label for="{{ task_form.paper.id_for_label }}" class="form-label">Linked Paper (optional)</label>
+            {{ task_form.paper }}
+          </div>
+          <div class="col-md-6">
+            <label for="{{ task_form.assigned_to.id_for_label }}" class="form-label">Assigned To</label>
+            {{ task_form.assigned_to }}
+          </div>
+          <div class="col-md-6">
+            <label for="{{ task_form.due_date.id_for_label }}" class="form-label">Due Date</label>
+            {{ task_form.due_date }}
+          </div>
+          <div class="col-12">
+            <label for="{{ task_form.description.id_for_label }}" class="form-label">Description</label>
+            {{ task_form.description }}
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">Add Task</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if tasks %}
+      <div class="d-flex flex-column gap-3">
+        {% for task in tasks %}
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                <div>
+                  <h3 class="h6 mb-1">{{ task.title }}</h3>
+                  {% if task.description %}
+                    <p class="small text-muted mb-1">{{ task.description }}</p>
+                  {% endif %}
+                </div>
+                <span class="badge bg-{% if task.status == 'DONE' %}success{% elif task.status == 'IN_PROGRESS' %}warning text-dark{% else %}secondary{% endif %}">
+                  {{ task.get_status_display }}
+                </span>
+              </div>
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 small text-muted">
+                <div class="d-flex flex-wrap gap-3">
+                  {% if task.paper %}
+                    <span>
+                      Paper:
+                      <a href="{% url 'paper-detail' task.paper.id %}">{{ task.paper.title }}</a>
+                    </span>
+                  {% endif %}
+                  {% if task.assigned_to %}
+                    <span>Assignee: {{ task.assigned_to.username }}</span>
+                  {% endif %}
+                  {% if task.due_date %}
+                    <span>Due: {{ task.due_date }}</span>
+                  {% endif %}
+                </div>
+                <form method="post" class="d-flex align-items-center gap-2">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="update_task_status" />
+                  <input type="hidden" name="task_id" value="{{ task.id }}" />
+                  <select name="status" class="form-select form-select-sm" aria-label="Task status">
+                    {% for value, label in task_statuses %}
+                      <option value="{{ value }}" {% if task.status == value %}selected{% endif %}>
+                        {{ label }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn-outline-primary btn-sm">Update</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-secondary">No research tasks created for this group yet.</div>
     {% endif %}
   </div>
 </div>

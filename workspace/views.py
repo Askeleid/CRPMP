@@ -5,12 +5,19 @@ from django.contrib.auth.forms import UserCreationForm
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
-from workspace.forms import AddMemberForm, PaperForm, ResearchGroupForm
-from workspace.models import GroupMembership, ResearchGroup, Tag
+from workspace.forms import (
+    AddMemberForm,
+    ExperimentLogForm,
+    PaperForm,
+    ResearchGroupForm,
+    ResearchTaskForm,
+)
+from workspace.models import GroupMembership, Paper, ResearchGroup, ResearchTask, Tag
 from workspace.services import (
     assign_tags_to_paper,
     create_group_with_admin,
     filter_papers_queryset,
+    is_group_member,
 )
 
 User = get_user_model()
@@ -89,9 +96,34 @@ def _handle_add_member(request, group: ResearchGroup, is_admin: bool):
     return member_form, None
 
 
+def _handle_add_task(request, group: ResearchGroup):
+    """Process creation of a ResearchTask inside a research group."""
+    task_form = ResearchTaskForm(request.POST, group=group)
+    if task_form.is_valid():
+        task = task_form.save(commit=False)
+        task.group = group
+        task.save()
+        messages.success(request, f"Added task '{task.title}'.")
+        return task_form, redirect("group-detail", pk=group.pk)
+    return task_form, None
+
+
+def _handle_update_task_status(request, group: ResearchGroup):
+    """Update the status of an existing ResearchTask within the group."""
+    task = get_object_or_404(ResearchTask, pk=request.POST.get("task_id"), group=group)
+    new_status = request.POST.get("status", "").strip().upper()
+    if new_status in ResearchTask.Status.values:
+        task.status = new_status
+        task.save(update_fields=["status"])
+        messages.success(request, f"Updated '{task.title}' to {task.get_status_display()}.")
+    else:
+        messages.error(request, "Invalid task status selected.")
+    return redirect("group-detail", pk=group.pk)
+
+
 @login_required
 def group_detail_view(request, pk: int):
-    """Display a research group's members and searchable papers, enforcing membership."""
+    """Display a research group's members, tasks, and searchable papers."""
     group = get_object_or_404(ResearchGroup, pk=pk)
     membership = GroupMembership.objects.filter(group=group, user=request.user).first()
     if membership is None:
@@ -100,6 +132,7 @@ def group_detail_view(request, pk: int):
     is_admin = membership.role == GroupMembership.Role.ADMIN
     member_form = AddMemberForm()
     paper_form = PaperForm()
+    task_form = ResearchTaskForm(group=group)
 
     if request.method == "POST":
         action = request.POST.get("action", "add_paper")
@@ -107,6 +140,12 @@ def group_detail_view(request, pk: int):
             member_form, response = _handle_add_member(request, group, is_admin)
             if response is not None:
                 return response
+        elif action == "add_task":
+            task_form, response = _handle_add_task(request, group)
+            if response is not None:
+                return response
+        elif action == "update_task_status":
+            return _handle_update_task_status(request, group)
         else:
             paper_form = PaperForm(request.POST, request.FILES)
             if paper_form.is_valid():
@@ -130,6 +169,7 @@ def group_detail_view(request, pk: int):
         tag=tag_query,
         year=year_query,
     )
+    tasks = group.tasks.select_related("paper", "assigned_to").order_by("-created_at")
     memberships = group.memberships.select_related("user").order_by("role", "joined_at")
     available_tags = (
         Tag.objects.filter(papers__group=group).distinct().order_by("name")
@@ -144,11 +184,51 @@ def group_detail_view(request, pk: int):
             "is_admin": is_admin,
             "memberships": memberships,
             "papers": papers,
+            "tasks": tasks,
+            "task_statuses": ResearchTask.Status.choices,
             "available_tags": available_tags,
             "member_form": member_form,
             "paper_form": paper_form,
+            "task_form": task_form,
             "search_query": search_query,
             "tag_query": tag_query,
             "year_query": year_query,
+        },
+    )
+
+
+@login_required
+def paper_detail_view(request, paper_id: int):
+    """Display paper metadata, tags, and experiment logs for group members."""
+    paper = get_object_or_404(
+        Paper.objects.select_related("group", "added_by").prefetch_related("tags"),
+        pk=paper_id,
+    )
+    if not is_group_member(paper.group, request.user):
+        return HttpResponseForbidden("You are not a member of this paper's group.")
+
+    if request.method == "POST":
+        log_form = ExperimentLogForm(request.POST)
+        if log_form.is_valid():
+            log = log_form.save(commit=False)
+            log.paper = paper
+            log.author = request.user
+            log.save()
+            messages.success(request, f"Logged experiment '{log.title}'.")
+            return redirect("paper-detail", paper_id=paper.id)
+    else:
+        log_form = ExperimentLogForm()
+
+    experiment_logs = paper.experiment_logs.select_related("author").order_by(
+        "-logged_at"
+    )
+
+    return render(
+        request,
+        "workspace/paper_detail.html",
+        {
+            "paper": paper,
+            "experiment_logs": experiment_logs,
+            "log_form": log_form,
         },
     )
