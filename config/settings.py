@@ -160,7 +160,7 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Workspace API",
-    "DESCRIPTION": "API documentation for the Django REST Framework workspace service.",
+    "DESCRIPTION": "API documentation for the Django REST Framework workspace service for metadata import.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
