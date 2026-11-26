@@ -122,6 +122,22 @@ def test_dashboard_creates_group_with_auto_admin_membership(client, user_factory
     content = dash_response.content.decode()
     assert "NLP Group" in content
     assert "Bob Lab" not in content
+    assert "1 member" in content
+
+    # Adding another member and paper updates dashboard counts accurately
+    from workspace.models import Paper
+
+    GroupMembership.objects.create(
+        group=group, user=bob, role=GroupMembership.Role.MEMBER
+    )
+    Paper.objects.create(
+        group=group, added_by=alice, title="Group Paper", authors="Alice", year=2025
+    )
+    updated_dash = client.get(reverse("dashboard"))
+    assert updated_dash.status_code == 200
+    updated_content = updated_dash.content.decode()
+    assert "2 members" in updated_content
+    assert "1 paper" in updated_content
 
 
 @pytest.mark.django_db

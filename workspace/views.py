@@ -75,18 +75,20 @@ def dashboard_view(request):
     else:
         form = ResearchGroupForm()
 
+    user_group_ids = GroupMembership.objects.filter(user=request.user).values(
+        "group_id"
+    )
     user_role_subquery = GroupMembership.objects.filter(
         group=OuterRef("pk"), user=request.user
     ).values("role")[:1]
     groups = (
-        ResearchGroup.objects.filter(memberships__user=request.user)
+        ResearchGroup.objects.filter(pk__in=user_group_ids)
         .select_related("created_by")
         .annotate(
             member_count=Count("memberships", distinct=True),
             paper_count=Count("papers", distinct=True),
             user_role=Subquery(user_role_subquery),
         )
-        .distinct()
         .order_by("-created_at")
     )
     return render(
