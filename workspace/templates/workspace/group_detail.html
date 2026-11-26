@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }} | Research Workspace{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="{% url 'dashboard' %}" class="text-decoration-none">&larr; Back to Dashboard</a>
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mt-2">
+    <div>
+      <h1 class="h3 mb-1">{{ group.name }}</h1>
+      <p class="text-muted mb-0">{{ group.description|default:"No description provided." }}</p>
+    </div>
+    <span class="badge bg-{% if is_admin %}primary{% else %}secondary{% endif %} fs-6">
+      Role: {{ membership.role }}
+    </span>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Left Column: Members & Add Paper -->
+  <div class="col-lg-4">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white">
+        <h2 class="h5 mb-0">Members ({{ memberships|length }})</h2>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for m in memberships %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ m.user.username }}</span>
+            <span class="badge bg-{% if m.role == 'ADMIN' %}primary{% else %}secondary{% endif %}">
+              {{ m.role }}
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if is_admin %}
+        <div class="card-body border-top">
+          <h3 class="h6 mb-2">Add Member</h3>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_member" />
+            <div class="input-group">
+              {{ member_form.username }}
+              <button type="submit" class="btn btn-outline-primary">Add</button>
+            </div>
+            {% for error in member_form.username.errors %}
+              <div class="text-danger small mt-1">{{ error }}</div>
+            {% endfor %}
+          </form>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header bg-white">
+        <h2 class="h5 mb-0">Add Paper</h2>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_paper" />
+          {% for field in paper_form %}
+            <div class="mb-3">
+              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}
+                <div class="form-text">{{ field.help_text }}</div>
+              {% endif %}
+              {% for error in field.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary w-100">Add Paper</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Search & Papers List -->
+  <div class="col-lg-8">
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+          <div class="col-md-5">
+            <label for="search" class="form-label">Search title or authors</label>
+            <input
+              type="text"
+              id="search"
+              name="search"
+              value="{{ search_query }}"
+              class="form-control"
+              placeholder="Keyword..."
+            />
+          </div>
+          <div class="col-md-3">
+            <label for="tag" class="form-label">Tag</label>
+            <input
+              type="text"
+              id="tag"
+              name="tag"
+              value="{{ tag_query }}"
+              list="available-tags"
+              class="form-control"
+              placeholder="e.g., nlp"
+            />
+            <datalist id="available-tags">
+              {% for t in available_tags %}
+                <option value="{{ t.name }}"></option>
+              {% endfor %}
+            </datalist>
+          </div>
+          <div class="col-md-2">
+            <label for="year" class="form-label">Year</label>
+            <input
+              type="number"
+              id="year"
+              name="year"
+              value="{{ year_query }}"
+              class="form-control"
+              placeholder="2024"
+            />
+          </div>
+          <div class="col-md-2 d-flex gap-1">
+            <button type="submit" class="btn btn-primary w-100">Filter</button>
+            {% if search_query or tag_query or year_query %}
+              <a href="{% url 'group-detail' group.id %}" class="btn btn-outline-secondary">Reset</a>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if papers %}
+      <div class="d-flex flex-column gap-3">
+        {% for paper in papers %}
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <h3 class="h5 card-title mb-1">{{ paper.title }}</h3>
+                <span class="badge bg-dark">{{ paper.year }}</span>
+              </div>
+              <p class="text-muted mb-2">{{ paper.authors }}</p>
+              {% if paper.abstract %}
+                <p class="card-text small">{{ paper.abstract }}</p>
+              {% endif %}
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                {% for tag in paper.tags.all %}
+                  <a
+                    href="?tag={{ tag.name|urlencode }}"
+                    class="badge text-bg-info text-decoration-none"
+                  >
+                    #{{ tag.name }}
+                  </a>
+                {% endfor %}
+              </div>
+              <div class="d-flex flex-wrap gap-3 small text-muted">
+                {% if paper.doi %}
+                  <span>DOI: {{ paper.doi }}</span>
+                {% endif %}
+                {% if paper.arxiv_id %}
+                  <span>arXiv: {{ paper.arxiv_id }}</span>
+                {% endif %}
+                {% if paper.url %}
+                  <a href="{{ paper.url }}" target="_blank" rel="noopener">External Link</a>
+                {% endif %}
+                {% if paper.pdf_file %}
+                  <a href="{{ paper.pdf_file.url }}" target="_blank" rel="noopener">Download PDF</a>
+                {% endif %}
+                <span class="ms-auto">Added by {{ paper.added_by.username }}</span>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-secondary">No papers found matching your criteria.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

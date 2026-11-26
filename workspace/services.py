@@ -1,0 +1,84 @@
+from collections.abc import Iterable
+
+from django.db import transaction
+from django.db.models import Q, QuerySet
+
+from workspace.models import GroupMembership, Paper, ResearchGroup, Tag
+
+
+def create_group_with_admin(
+    *, name: str, description: str, user
+) -> ResearchGroup:
+    """Create a ResearchGroup and enroll its creator as an ADMIN member."""
+    with transaction.atomic():
+        group = ResearchGroup.objects.create(
+            name=name,
+            description=description,
+            created_by=user,
+        )
+        GroupMembership.objects.create(
+            group=group,
+            user=user,
+            role=GroupMembership.Role.ADMIN,
+        )
+    return group
+
+
+def parse_tag_names(raw_tags: str | Iterable[str]) -> list[str]:
+    """Normalize a comma-separated string or iterable into unique lowercase tags."""
+    if isinstance(raw_tags, str):
+        candidates = raw_tags.split(",")
+    else:
+        candidates = raw_tags
+
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for item in candidates:
+        name = str(item).strip().lower()
+        if name and name not in seen:
+            seen.add(name)
+            normalized.append(name)
+    return normalized
+
+
+def assign_tags_to_paper(paper: Paper, raw_tags: str | Iterable[str]) -> None:
+    """Resolve Tag records for normalized tag names and attach them to a paper."""
+    tag_names = parse_tag_names(raw_tags)
+    tag_objects = [Tag.objects.get_or_create(name=name)[0] for name in tag_names]
+    paper.tags.set(tag_objects)
+
+
+def filter_papers_queryset(
+    queryset: QuerySet[Paper],
+    *,
+    search: str | None = None,
+    tag: str | None = None,
+    year: str | int | None = None,
+    group_id: str | int | None = None,
+) -> QuerySet[Paper]:
+    """Filter a Paper queryset by search keyword, tag name, year, and group."""
+    if search:
+        term = search.strip()
+        if term:
+            queryset = queryset.filter(
+                Q(title__icontains=term) | Q(authors__icontains=term)
+            )
+
+    if tag:
+        tag_name = tag.strip().lower()
+        if tag_name:
+            queryset = queryset.filter(tags__name__iexact=tag_name).distinct()
+
+    if year not in (None, ""):
+        try:
+            queryset = queryset.filter(year=int(year))
+        except (TypeError, ValueError):
+            pass
+
+    if group_id not in (None, ""):
+        try:
+            queryset = queryset.filter(group_id=int(group_id))
+        except (TypeError, ValueError):
+            pass
+
+    return queryset
