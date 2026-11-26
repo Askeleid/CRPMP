@@ -90,14 +90,15 @@ def test_e2e_auth_and_group_creation(live_server, browser):
     browser.find_element(By.CSS_SELECTOR, "textarea[name='description']").send_keys(
         "Created via Selenium browser test"
     )
-    browser.find_element(
+    submit_btn = browser.find_element(
         By.XPATH, "//form[.//input[@name='name']]//button[@type='submit']"
-    ).click()
+    )
+    submit_btn.click()
 
+    wait.until(EC.staleness_of(submit_btn))
     wait.until(
         EC.text_to_be_present_in_element((By.TAG_NAME, "main"), "E2E Vision Lab")
     )
-    assert "E2E Vision Lab" in browser.page_source
 
 
 @pytest.mark.django_db(transaction=True)

@@ -4,17 +4,261 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}Research Workspace{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
       integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
       crossorigin="anonymous"
     />
+    <style>
+      :root {
+        --ws-canvas: #F8FAFC;
+        --ws-surface: #FFFFFF;
+        --ws-border: #E2E8F0;
+        --ws-nav-bg: #0F172A;
+        --ws-ink: #0F172A;
+        --ws-muted: #64748B;
+        --ws-indigo: #4F46E5;
+        --ws-indigo-hover: #4338CA;
+        --ws-indigo-soft: #EEF2FF;
+        --bs-primary: #4F46E5;
+        --bs-primary-rgb: 79, 70, 229;
+        --bs-body-bg: #F8FAFC;
+        --bs-body-color: #0F172A;
+        --bs-border-color: #E2E8F0;
+        --bs-border-radius: 0.625rem;
+        --bs-font-sans-serif: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        --bs-font-monospace: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      body {
+        background-color: var(--ws-canvas);
+        color: var(--ws-ink);
+        font-family: var(--bs-font-sans-serif);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      code, pre, .font-mono {
+        font-family: var(--bs-font-monospace);
+      }
+
+      a {
+        color: var(--ws-indigo);
+      }
+      a:hover {
+        color: var(--ws-indigo-hover);
+      }
+
+      /* Navbar */
+      .ws-navbar {
+        background-color: var(--ws-nav-bg);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+      }
+      .ws-brand-badge {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #FFFFFF;
+        box-shadow: 0 2px 6px rgba(79, 70, 229, 0.45);
+      }
+      .ws-navbar .nav-link {
+        color: #CBD5E1;
+        font-weight: 500;
+        font-size: 0.925rem;
+        transition: color 0.15s ease;
+      }
+      .ws-navbar .nav-link:hover,
+      .ws-navbar .nav-link:focus {
+        color: #FFFFFF;
+      }
+
+      /* Cards */
+      .card {
+        background-color: var(--ws-surface);
+        border: 1px solid var(--ws-border);
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      }
+      .card-header {
+        background-color: var(--ws-surface);
+        border-bottom: 1px solid var(--ws-border);
+        border-top-left-radius: 12px !important;
+        border-top-right-radius: 12px !important;
+        padding: 0.9rem 1.25rem;
+      }
+      .ws-card-interactive {
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      }
+      .ws-card-interactive:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -6px rgba(15, 23, 42, 0.04);
+        border-color: #CBD5E1;
+      }
+
+      /* Buttons */
+      .btn-primary {
+        background-color: var(--ws-indigo);
+        border-color: var(--ws-indigo);
+        font-weight: 500;
+      }
+      .btn-primary:hover,
+      .btn-primary:focus,
+      .btn-primary:active {
+        background-color: var(--ws-indigo-hover) !important;
+        border-color: var(--ws-indigo-hover) !important;
+      }
+      .btn-outline-primary {
+        color: var(--ws-indigo);
+        border-color: #C7D2FE;
+        background-color: #FFFFFF;
+        font-weight: 500;
+      }
+      .btn-outline-primary:hover,
+      .btn-outline-primary:focus {
+        color: #FFFFFF;
+        background-color: var(--ws-indigo);
+        border-color: var(--ws-indigo);
+      }
+
+      /* Forms */
+      .form-label {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: #334155;
+      }
+      .form-control,
+      .form-select {
+        border-color: #CBD5E1;
+        border-radius: 8px;
+        font-size: 0.925rem;
+      }
+      .form-control:focus,
+      .form-select:focus {
+        border-color: var(--ws-indigo);
+        box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.16);
+      }
+
+      /* Domain Pills & Badges */
+      .ws-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      .ws-pill-admin {
+        background-color: #EEF2FF;
+        color: #4338CA;
+        border: 1px solid #C7D2FE;
+      }
+      .ws-pill-member {
+        background-color: #F1F5F9;
+        color: #475569;
+        border: 1px solid #E2E8F0;
+      }
+      .ws-pill-slate {
+        background-color: #F1F5F9;
+        color: #334155;
+        border: 1px solid #CBD5E1;
+      }
+      .ws-pill-amber {
+        background-color: #FEF3C7;
+        color: #92400E;
+        border: 1px solid #FDE68A;
+      }
+      .ws-pill-emerald {
+        background-color: #D1FAE5;
+        color: #065F46;
+        border: 1px solid #A7F3D0;
+      }
+      .ws-tag-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.6rem;
+        border-radius: 9999px;
+        font-family: var(--bs-font-monospace);
+        font-size: 0.75rem;
+        font-weight: 500;
+        background-color: #EEF2FF;
+        color: #4338CA;
+        border: 1px solid #E0E7FF;
+        text-decoration: none;
+        transition: background-color 0.15s ease;
+      }
+      .ws-tag-pill:hover {
+        background-color: #E0E7FF;
+        color: #3730A3;
+      }
+      .ws-mono-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.18rem 0.5rem;
+        border-radius: 6px;
+        font-family: var(--bs-font-monospace);
+        font-size: 0.75rem;
+        background-color: #F1F5F9;
+        color: #334155;
+        border: 1px solid #E2E8F0;
+      }
+
+      /* Notification Dropdown */
+      .ws-notif-menu {
+        min-width: 340px;
+        border: 1px solid var(--ws-border);
+        border-radius: 12px;
+        box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.06);
+      }
+      .ws-notif-item-unread {
+        background-color: #EEF2FF;
+        border-left: 3px solid var(--ws-indigo);
+      }
+
+      /* Citation Dark Code Block */
+      .ws-citation-block {
+        background-color: #0F172A;
+        color: #E2E8F0;
+        border: 1px solid #1E293B;
+        border-radius: 10px;
+        font-family: var(--bs-font-monospace);
+        font-size: 0.84rem;
+        line-height: 1.6;
+        padding: 1rem 1.125rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      /* Timeline Cards */
+      .ws-timeline-card {
+        border-left: 4px solid var(--ws-indigo);
+      }
+    </style>
   </head>
-  <body class="bg-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark ws-navbar mb-4">
       <div class="container">
-        <a class="navbar-brand fw-semibold" href="{% url 'dashboard' %}">CRPMP Workspace</a>
+        <a class="navbar-brand fw-semibold d-inline-flex align-items-center gap-2 text-white" href="{% url 'dashboard' %}">
+          <span class="ws-brand-badge" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+            </svg>
+          </span>
+          <span>CRPMP Workspace</span>
+        </a>
         <button
           class="navbar-toggler"
           type="button"
@@ -27,7 +271,7 @@
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav me-auto">
+          <ul class="navbar-nav me-auto ms-lg-3">
             {% if user.is_authenticated %}
               <li class="nav-item">
                 <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
@@ -41,48 +285,50 @@
             {% if user.is_authenticated %}
               <li class="nav-item dropdown">
                 <button
-                  class="btn btn-outline-light btn-sm dropdown-toggle position-relative"
+                  class="btn btn-sm btn-outline-light border-secondary-subtle dropdown-toggle d-inline-flex align-items-center gap-2"
                   type="button"
                   id="notificationsDropdown"
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                 >
-                  Notifications
+                  <span>Notifications</span>
                   {% if unread_notifications_count %}
-                    <span class="badge rounded-pill bg-danger ms-1">{{ unread_notifications_count }}</span>
+                    <span class="badge rounded-pill" style="background-color: #4F46E5;">{{ unread_notifications_count }}</span>
                   {% else %}
-                    <span class="badge rounded-pill bg-secondary ms-1">0</span>
+                    <span class="badge rounded-pill bg-secondary">0</span>
                   {% endif %}
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end p-2" aria-labelledby="notificationsDropdown" style="min-width: 320px;">
-                  <li class="dropdown-header d-flex justify-content-between align-items-center">
-                    <span>Recent Notifications</span>
-                    <span class="badge bg-secondary">{{ unread_notifications_count }} unread</span>
+                <ul class="dropdown-menu dropdown-menu-end p-2 ws-notif-menu" aria-labelledby="notificationsDropdown">
+                  <li class="dropdown-header d-flex justify-content-between align-items-center px-2 py-1">
+                    <span class="fw-semibold text-dark">Recent Notifications</span>
+                    <span class="ws-pill ws-pill-slate">{{ unread_notifications_count }} unread</span>
                   </li>
-                  <li><hr class="dropdown-divider" /></li>
+                  <li><hr class="dropdown-divider my-1" /></li>
                   {% for notif in recent_notifications %}
-                    <li class="px-2 py-1 {% if not notif.is_read %}bg-light fw-semibold{% endif %} rounded mb-1">
-                      <div class="small">{{ notif.message }}</div>
+                    <li class="px-2 py-2 rounded mb-1 {% if not notif.is_read %}ws-notif-item-unread fw-medium{% else %}bg-white{% endif %}">
+                      <div class="small text-dark">{{ notif.message }}</div>
                       <div class="d-flex justify-content-between align-items-center mt-1">
-                        <small class="text-muted">{{ notif.created_at|date:"M d, H:i" }}</small>
+                        <small class="text-muted font-mono" style="font-size: 0.72rem;">{{ notif.created_at|date:"M d, H:i" }}</small>
                         {% if not notif.is_read %}
                           <form method="post" action="{% url 'notification-mark-read' notif.id %}" class="d-inline">
                             {% csrf_token %}
                             <input type="hidden" name="next" value="{{ request.get_full_path }}" />
-                            <button type="submit" class="btn btn-link btn-sm p-0 text-decoration-none">Mark read</button>
+                            <button type="submit" class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold">Mark read</button>
                           </form>
                         {% else %}
-                          <span class="badge bg-light text-muted border">Read</span>
+                          <span class="ws-pill ws-pill-slate" style="font-size: 0.68rem;">Read</span>
                         {% endif %}
                       </div>
                     </li>
                   {% empty %}
-                    <li class="px-2 py-2 text-muted small">No notifications yet.</li>
+                    <li class="px-2 py-3 text-center text-muted small">No notifications yet.</li>
                   {% endfor %}
                 </ul>
               </li>
               <li class="nav-item">
-                <span class="navbar-text text-light me-2">Signed in as <strong>{{ user.username }}</strong></span>
+                <span class="navbar-text text-light small me-2">
+                  Signed in as <strong class="text-white">{{ user.username }}</strong>
+                </span>
               </li>
               <li class="nav-item">
                 <form method="post" action="{% url 'logout' %}" class="d-inline">
@@ -95,7 +341,7 @@
                 <a class="nav-link" href="{% url 'login' %}">Login</a>
               </li>
               <li class="nav-item">
-                <a class="btn btn-primary btn-sm" href="{% url 'register' %}">Register</a>
+                <a class="btn btn-primary btn-sm px-3" href="{% url 'register' %}">Register</a>
               </li>
             {% endif %}
           </ul>
@@ -106,7 +352,7 @@
     <main class="container pb-5">
       {% if messages %}
         {% for message in messages %}
-          <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+          <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show border shadow-sm" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
