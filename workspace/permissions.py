@@ -1,6 +1,12 @@
 from rest_framework.permissions import BasePermission
 
-from workspace.models import GroupMembership, Paper, ResearchGroup
+from workspace.models import (
+    ExperimentLog,
+    GroupMembership,
+    Paper,
+    ResearchGroup,
+    ResearchTask,
+)
 
 
 class IsGroupMember(BasePermission):
@@ -9,10 +15,12 @@ class IsGroupMember(BasePermission):
     message = "You must be a member of this research group."
 
     def has_object_permission(self, request, view, obj) -> bool:
-        if isinstance(obj, ResearchGroup):
+        if isinstance(obj, (ResearchGroup,)):
             group = obj
-        elif isinstance(obj, Paper):
+        elif isinstance(obj, (Paper, ResearchTask)):
             group = obj.group
+        elif isinstance(obj, ExperimentLog):
+            group = obj.paper.group
         else:
             return False
 

@@ -93,3 +93,67 @@ class Paper(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class ResearchTask(models.Model):
+    """Actionable research task scoped to a research group and optional paper."""
+
+    class Status(models.TextChoices):
+        TODO = "TODO", "To Do"
+        IN_PROGRESS = "IN_PROGRESS", "In Progress"
+        DONE = "DONE", "Done"
+
+    group = models.ForeignKey(
+        ResearchGroup,
+        on_delete=models.CASCADE,
+        related_name="tasks",
+    )
+    paper = models.ForeignKey(
+        Paper,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tasks",
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_tasks",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.TODO,
+    )
+    due_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class ExperimentLog(models.Model):
+    """Experiment log or reproduction note attached to a research paper."""
+
+    paper = models.ForeignKey(
+        Paper,
+        on_delete=models.CASCADE,
+        related_name="experiment_logs",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="experiment_logs",
+    )
+    title = models.CharField(max_length=255)
+    hypothesis = models.TextField()
+    parameters = models.TextField(blank=True)
+    result_summary = models.TextField()
+    logged_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return self.title

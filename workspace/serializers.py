@@ -2,8 +2,8 @@ from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from workspace.models import Paper, ResearchGroup
-from workspace.services import assign_tags_to_paper
+from workspace.models import ExperimentLog, Paper, ResearchGroup, ResearchTask
+from workspace.services import assign_tags_to_paper, is_group_member
 
 
 class HealthCheckSerializer(serializers.Serializer):
@@ -74,3 +74,75 @@ class PaperSerializer(serializers.ModelSerializer):
             if tag_names is not None:
                 assign_tags_to_paper(paper, tag_names)
         return paper
+
+
+class ResearchTaskSerializer(serializers.ModelSerializer):
+    """Serializer for ResearchTask records."""
+
+    class Meta:
+        model = ResearchTask
+        fields = [
+            "id",
+            "group",
+            "paper",
+            "title",
+            "description",
+            "assigned_to",
+            "status",
+            "due_date",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def validate(self, attrs):
+        group = attrs.get("group") or (
+            self.instance.group if self.instance is not None else None
+        )
+        paper = (
+            attrs["paper"]
+            if "paper" in attrs
+            else getattr(self.instance, "paper", None)
+        )
+        if paper is not None and group is not None and paper.group_id != group.id:
+            raise serializers.ValidationError(
+                {"paper": "Paper must belong to the same research group as the task."}
+            )
+
+        assigned_to = (
+            attrs["assigned_to"]
+            if "assigned_to" in attrs
+            else getattr(self.instance, "assigned_to", None)
+        )
+        if (
+            assigned_to is not None
+            and group is not None
+            and not is_group_member(group, assigned_to)
+        ):
+            raise serializers.ValidationError(
+                {
+                    "assigned_to": (
+                        "Assignee must be a member of the task's research group."
+                    )
+                }
+            )
+        return attrs
+
+
+class ExperimentLogSerializer(serializers.ModelSerializer):
+    """Serializer for ExperimentLog entries linked to a Paper."""
+
+    author = serializers.ReadOnlyField(source="author.username")
+
+    class Meta:
+        model = ExperimentLog
+        fields = [
+            "id",
+            "paper",
+            "author",
+            "title",
+            "hypothesis",
+            "parameters",
+            "result_summary",
+            "logged_at",
+        ]
+        read_only_fields = ["id", "author", "logged_at"]

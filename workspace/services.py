@@ -3,7 +3,19 @@ from collections.abc import Iterable
 from django.db import transaction
 from django.db.models import Q, QuerySet
 
-from workspace.models import GroupMembership, Paper, ResearchGroup, Tag
+from workspace.models import (
+    ExperimentLog,
+    GroupMembership,
+    Paper,
+    ResearchGroup,
+    ResearchTask,
+    Tag,
+)
+
+
+def is_group_member(group: ResearchGroup, user) -> bool:
+    """Return True if the user is a member of the given research group."""
+    return GroupMembership.objects.filter(group=group, user=user).exists()
 
 
 def create_group_with_admin(
@@ -78,6 +90,42 @@ def filter_papers_queryset(
     if group_id not in (None, ""):
         try:
             queryset = queryset.filter(group_id=int(group_id))
+        except (TypeError, ValueError):
+            pass
+
+    return queryset
+
+
+def filter_tasks_queryset(
+    queryset: QuerySet[ResearchTask],
+    *,
+    group_id: str | int | None = None,
+    status_value: str | None = None,
+) -> QuerySet[ResearchTask]:
+    """Filter a ResearchTask queryset by group ID and status."""
+    if group_id not in (None, ""):
+        try:
+            queryset = queryset.filter(group_id=int(group_id))
+        except (TypeError, ValueError):
+            pass
+
+    if status_value:
+        normalized_status = status_value.strip().upper()
+        if normalized_status in ResearchTask.Status.values:
+            queryset = queryset.filter(status=normalized_status)
+
+    return queryset
+
+
+def filter_experiment_logs_queryset(
+    queryset: QuerySet[ExperimentLog],
+    *,
+    paper_id: str | int | None = None,
+) -> QuerySet[ExperimentLog]:
+    """Filter an ExperimentLog queryset by paper ID."""
+    if paper_id not in (None, ""):
+        try:
+            queryset = queryset.filter(paper_id=int(paper_id))
         except (TypeError, ValueError):
             pass
 

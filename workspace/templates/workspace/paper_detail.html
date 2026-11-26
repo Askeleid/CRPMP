@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}{{ paper.title }} | Research Workspace{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="{% url 'group-detail' paper.group.id %}" class="text-decoration-none">
+    &larr; Back to {{ paper.group.name }}
+  </a>
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mt-2">
+    <div>
+      <h1 class="h3 mb-1">{{ paper.title }}</h1>
+      <p class="text-muted mb-1">{{ paper.authors }}</p>
+    </div>
+    <span class="badge bg-dark fs-6">{{ paper.year }}</span>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Left Column: Paper Metadata & Add Experiment Log -->
+  <div class="col-lg-5">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white">
+        <h2 class="h5 mb-0">Paper Details</h2>
+      </div>
+      <div class="card-body">
+        {% if paper.abstract %}
+          <p class="card-text">{{ paper.abstract }}</p>
+        {% else %}
+          <p class="text-muted fst-italic">No abstract provided.</p>
+        {% endif %}
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          {% for tag in paper.tags.all %}
+            <a
+              href="{% url 'group-detail' paper.group.id %}?tag={{ tag.name|urlencode }}"
+              class="badge text-bg-info text-decoration-none"
+            >
+              #{{ tag.name }}
+            </a>
+          {% empty %}
+            <span class="text-muted small">No tags</span>
+          {% endfor %}
+        </div>
+
+        <dl class="row small mb-0">
+          <dt class="col-sm-4 text-muted">Group</dt>
+          <dd class="col-sm-8">{{ paper.group.name }}</dd>
+
+          <dt class="col-sm-4 text-muted">Added by</dt>
+          <dd class="col-sm-8">{{ paper.added_by.username }}</dd>
+
+          {% if paper.doi %}
+            <dt class="col-sm-4 text-muted">DOI</dt>
+            <dd class="col-sm-8">{{ paper.doi }}</dd>
+          {% endif %}
+
+          {% if paper.arxiv_id %}
+            <dt class="col-sm-4 text-muted">arXiv ID</dt>
+            <dd class="col-sm-8">{{ paper.arxiv_id }}</dd>
+          {% endif %}
+
+          {% if paper.url %}
+            <dt class="col-sm-4 text-muted">External Link</dt>
+            <dd class="col-sm-8">
+              <a href="{{ paper.url }}" target="_blank" rel="noopener">{{ paper.url }}</a>
+            </dd>
+          {% endif %}
+
+          {% if paper.pdf_file %}
+            <dt class="col-sm-4 text-muted">PDF</dt>
+            <dd class="col-sm-8">
+              <a href="{{ paper.pdf_file.url }}" target="_blank" rel="noopener">Download PDF</a>
+            </dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header bg-white">
+        <h2 class="h5 mb-0">Add Experiment Log</h2>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          {% for field in log_form %}
+            <div class="mb-3">
+              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+              {{ field }}
+              {% for error in field.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary w-100">Save Experiment Log</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Experiment Logs Timeline -->
+  <div class="col-lg-7">
+    <h2 class="h4 mb-3">Experiment Logs ({{ experiment_logs|length }})</h2>
+
+    {% if experiment_logs %}
+      <div class="d-flex flex-column gap-3">
+        {% for log in experiment_logs %}
+          <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <h3 class="h5 mb-0">{{ log.title }}</h3>
+              <small class="text-muted">{{ log.author.username }} &middot; {{ log.logged_at|date:"Y-m-d H:i" }}</small>
+            </div>
+            <div class="card-body">
+              <p class="mb-2"><strong>Hypothesis:</strong> {{ log.hypothesis }}</p>
+              {% if log.parameters %}
+                <p class="mb-2">
+                  <strong>Parameters:</strong>
+                  <code class="text-dark">{{ log.parameters }}</code>
+                </p>
+              {% endif %}
+              <p class="mb-0"><strong>Result Summary:</strong> {{ log.result_summary }}</p>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-secondary">
+        No experiment logs recorded for this paper yet. Use the form on the left to add one.
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

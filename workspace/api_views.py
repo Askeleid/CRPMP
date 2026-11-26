@@ -8,14 +8,27 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from workspace.models import GroupMembership, Paper, ResearchGroup
+from workspace.models import (
+    ExperimentLog,
+    GroupMembership,
+    Paper,
+    ResearchGroup,
+    ResearchTask,
+)
 from workspace.permissions import IsGroupMember
 from workspace.serializers import (
+    ExperimentLogSerializer,
     HealthCheckSerializer,
     PaperSerializer,
     ResearchGroupSerializer,
+    ResearchTaskSerializer,
 )
-from workspace.services import filter_papers_queryset
+from workspace.services import (
+    filter_experiment_logs_queryset,
+    filter_papers_queryset,
+    filter_tasks_queryset,
+    is_group_member,
+)
 
 
 class HealthCheckView(APIView):
@@ -193,4 +206,176 @@ class PaperViewSet(viewsets.ModelViewSet):
             "group", serializer.instance.group
         )
         self._ensure_group_membership(target_group)
+        serializer.save()
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List Research Tasks",
+        description=(
+            "List tasks across groups the authenticated user belongs to, "
+            "with optional group and status filtering."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="group",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Filter tasks by research group ID.",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="status",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Filter tasks by status (TODO, IN_PROGRESS, DONE).",
+                required=False,
+            ),
+        ],
+        tags=["Tasks"],
+    ),
+    create=extend_schema(
+        summary="Create Research Task",
+        description="Create a new task inside a research group.",
+        tags=["Tasks"],
+    ),
+    retrieve=extend_schema(
+        summary="Retrieve Research Task",
+        description="Retrieve a research task belonging to one of the user's groups.",
+        tags=["Tasks"],
+    ),
+    update=extend_schema(
+        summary="Update Research Task",
+        description="Update a research task belonging to one of the user's groups.",
+        tags=["Tasks"],
+    ),
+    partial_update=extend_schema(
+        summary="Partially Update Research Task",
+        description="Partially update a research task (e.g., status transition).",
+        tags=["Tasks"],
+    ),
+    destroy=extend_schema(
+        summary="Delete Research Task",
+        description="Delete a research task belonging to one of the user's groups.",
+        tags=["Tasks"],
+    ),
+)
+class ResearchTaskViewSet(viewsets.ModelViewSet):
+    """REST API endpoints for managing ResearchTasks."""
+
+    serializer_class = ResearchTaskSerializer
+    permission_classes = [IsAuthenticated, IsGroupMember]
+
+    def get_queryset(self):
+        base_qs = ResearchTask.objects.select_related(
+            "group", "paper", "assigned_to"
+        ).order_by("-created_at")
+        if self.action == "list":
+            user_tasks = base_qs.filter(
+                group__memberships__user=self.request.user
+            ).distinct()
+            return filter_tasks_queryset(
+                user_tasks,
+                group_id=self.request.query_params.get("group"),
+                status_value=self.request.query_params.get("status"),
+            )
+        return base_qs
+
+    def _ensure_group_membership(self, group: ResearchGroup) -> None:
+        if not is_group_member(group, self.request.user):
+            raise PermissionDenied(
+                "You must be a member of this group to manage tasks."
+            )
+
+    def perform_create(self, serializer):
+        self._ensure_group_membership(serializer.validated_data["group"])
+        serializer.save()
+
+    def perform_update(self, serializer):
+        target_group = serializer.validated_data.get(
+            "group", serializer.instance.group
+        )
+        self._ensure_group_membership(target_group)
+        serializer.save()
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List Experiment Logs",
+        description=(
+            "List experiment logs across groups the authenticated user belongs to, "
+            "optionally filtered by paper."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="paper",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Filter experiment logs by paper ID.",
+                required=False,
+            ),
+        ],
+        tags=["Experiment Logs"],
+    ),
+    create=extend_schema(
+        summary="Create Experiment Log",
+        description="Log a new experiment entry against a paper.",
+        tags=["Experiment Logs"],
+    ),
+    retrieve=extend_schema(
+        summary="Retrieve Experiment Log",
+        description="Retrieve an experiment log from a group the user belongs to.",
+        tags=["Experiment Logs"],
+    ),
+    update=extend_schema(
+        summary="Update Experiment Log",
+        description="Update an experiment log from a group the user belongs to.",
+        tags=["Experiment Logs"],
+    ),
+    partial_update=extend_schema(
+        summary="Partially Update Experiment Log",
+        description="Partially update an experiment log from a group the user belongs to.",
+        tags=["Experiment Logs"],
+    ),
+    destroy=extend_schema(
+        summary="Delete Experiment Log",
+        description="Delete an experiment log from a group the user belongs to.",
+        tags=["Experiment Logs"],
+    ),
+)
+class ExperimentLogViewSet(viewsets.ModelViewSet):
+    """REST API endpoints for managing ExperimentLogs."""
+
+    serializer_class = ExperimentLogSerializer
+    permission_classes = [IsAuthenticated, IsGroupMember]
+
+    def get_queryset(self):
+        base_qs = ExperimentLog.objects.select_related(
+            "paper", "paper__group", "author"
+        ).order_by("-logged_at")
+        if self.action == "list":
+            user_logs = base_qs.filter(
+                paper__group__memberships__user=self.request.user
+            ).distinct()
+            return filter_experiment_logs_queryset(
+                user_logs,
+                paper_id=self.request.query_params.get("paper"),
+            )
+        return base_qs
+
+    def _ensure_paper_group_membership(self, paper: Paper) -> None:
+        if not is_group_member(paper.group, self.request.user):
+            raise PermissionDenied(
+                "You must be a member of this paper's group to log experiments."
+            )
+
+    def perform_create(self, serializer):
+        self._ensure_paper_group_membership(serializer.validated_data["paper"])
+        serializer.save(author=self.request.user)
+
+    def perform_update(self, serializer):
+        target_paper = serializer.validated_data.get(
+            "paper", serializer.instance.paper
+        )
+        self._ensure_paper_group_membership(target_paper)
         serializer.save()

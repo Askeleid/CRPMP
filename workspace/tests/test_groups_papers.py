@@ -211,7 +211,7 @@ def test_group_detail_paper_creation_with_tags_and_filtering(client, user_factor
     }
 
     # Add a second paper for filter assertions
-    Paper.objects.create(
+    resnet = Paper.objects.create(
         group=group,
         added_by=alice,
         title="ResNet: Deep Residual Learning",
@@ -224,20 +224,19 @@ def test_group_detail_paper_creation_with_tags_and_filtering(client, user_factor
         reverse("group-detail", args=[group.id]), {"search": "Devlin"}
     )
     assert search_resp.status_code == 200
-    assert "BERT:" in search_resp.content.decode()
-    assert "ResNet:" not in search_resp.content.decode()
+    assert list(search_resp.context["papers"]) == [paper]
+    assert reverse("paper-detail", args=[paper.id]) in search_resp.content.decode()
+    assert reverse("paper-detail", args=[resnet.id]) not in search_resp.content.decode()
 
     # Filter by tag
     tag_resp = client.get(reverse("group-detail", args=[group.id]), {"tag": "nlp"})
     assert tag_resp.status_code == 200
-    assert "BERT:" in tag_resp.content.decode()
-    assert "ResNet:" not in tag_resp.content.decode()
+    assert list(tag_resp.context["papers"]) == [paper]
 
     # Filter by year
     year_resp = client.get(reverse("group-detail", args=[group.id]), {"year": "2016"})
     assert year_resp.status_code == 200
-    assert "ResNet:" in year_resp.content.decode()
-    assert "BERT:" not in year_resp.content.decode()
+    assert list(year_resp.context["papers"]) == [resnet]
 
 
 @pytest.mark.django_db
