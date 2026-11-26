@@ -146,3 +146,11 @@ class ExperimentLogSerializer(serializers.ModelSerializer):
             "logged_at",
         ]
         read_only_fields = ["id", "author", "logged_at"]
+
+
+class PaperCitationSerializer(serializers.Serializer):
+    """Serializer representing a formatted paper citation response."""
+
+    paper_id = serializers.IntegerField()
+    format = serializers.CharField()
+    citation = serializers.CharField()

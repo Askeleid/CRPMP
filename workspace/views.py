@@ -13,6 +13,11 @@ from workspace.forms import (
     ResearchTaskForm,
 )
 from workspace.models import GroupMembership, Paper, ResearchGroup, ResearchTask, Tag
+from workspace.patterns.citations import (
+    CITATION_FORMATS,
+    CitationExporter,
+    get_citation_strategy,
+)
 from workspace.services import (
     assign_tags_to_paper,
     create_group_with_admin,
@@ -223,6 +228,14 @@ def paper_detail_view(request, paper_id: int):
         "-logged_at"
     )
 
+    cite_format = (request.GET.get("cite_format") or "bibtex").strip().lower()
+    try:
+        strategy = get_citation_strategy(cite_format)
+    except ValueError:
+        cite_format = "bibtex"
+        strategy = get_citation_strategy("bibtex")
+    citation = CitationExporter(strategy).export(paper)
+
     return render(
         request,
         "workspace/paper_detail.html",
@@ -230,5 +243,8 @@ def paper_detail_view(request, paper_id: int):
             "paper": paper,
             "experiment_logs": experiment_logs,
             "log_form": log_form,
+            "cite_format": cite_format,
+            "citation": citation,
+            "citation_formats": CITATION_FORMATS,
         },
     )
