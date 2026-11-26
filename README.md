@@ -71,3 +71,116 @@ pytest --cov
 ## Continuous Integration
 
 GitHub Actions (`.github/workflows/ci.yml`) runs `python manage.py check` and `pytest --cov` on pushes to `main` and `feat/**` branches as well as pull requests targeting `main`.
+
+## System Architecture & UML Class Diagram
+
+```mermaid
+classDiagram
+    class ResearchGroup {
+        +UUID id
+        +String name
+        +Text description
+        +DateTime created_at
+    }
+    class GroupMembership {
+        +String role
+        +DateTime joined_at
+    }
+    class Paper {
+        +UUID id
+        +String title
+        +String authors
+        +Int year
+        +String doi
+        +String arxiv_id
+        +URL url
+        +File pdf_file
+        +Text abstract
+    }
+    class Tag {
+        +String name
+    }
+    class ResearchTask {
+        +String title
+        +String status
+        +Date due_date
+    }
+    class ExperimentLog {
+        +String title
+        +Text hypothesis
+        +Text parameters
+        +Text result_summary
+        +DateTime logged_at
+    }
+    class Notification {
+        +String message
+        +Boolean is_read
+        +DateTime created_at
+    }
+    ResearchGroup "1" --> "*" GroupMembership
+    ResearchGroup "1" --> "*" Paper
+    ResearchGroup "1" --> "*" ResearchTask
+    Paper "*" --> "*" Tag
+    Paper "1" --> "*" ExperimentLog
+
+    %% Strategy Pattern (Behavioral)
+    class CitationStrategy {
+        <<interface>>
+        +format(paper: Paper) str
+    }
+    class BibTeXStrategy {
+        +format(paper: Paper) str
+    }
+    class APAStrategy {
+        +format(paper: Paper) str
+    }
+    class IEEEStrategy {
+        +format(paper: Paper) str
+    }
+    class CitationExporter {
+        -CitationStrategy strategy
+        +set_strategy(strategy: CitationStrategy)
+        +export(paper: Paper) str
+    }
+    CitationStrategy <|.. BibTeXStrategy
+    CitationStrategy <|.. APAStrategy
+    CitationStrategy <|.. IEEEStrategy
+    CitationExporter o--> CitationStrategy
+
+    %% Adapter Pattern (Structural)
+    class MetadataProvider {
+        <<interface>>
+        +fetch(identifier: str) dict
+    }
+    class ArxivAdapter {
+        -ArxivClient client
+        +fetch(identifier: str) dict
+    }
+    class CrossRefAdapter {
+        -CrossRefClient client
+        +fetch(identifier: str) dict
+    }
+    MetadataProvider <|.. ArxivAdapter
+    MetadataProvider <|.. CrossRefAdapter
+
+    %% Observer Pattern (Behavioral)
+    class ResearchObserver {
+        <<interface>>
+        +update(event: str, payload: dict)
+    }
+    class InAppObserver {
+        +update(event: str, payload: dict)
+    }
+    class EmailObserver {
+        +update(event: str, payload: dict)
+    }
+    class EventPublisher {
+        -List~ResearchObserver~ observers
+        +attach(observer: ResearchObserver)
+        +notify(event: str, payload: dict)
+    }
+    ResearchObserver <|.. InAppObserver
+    ResearchObserver <|.. EmailObserver
+    EventPublisher o--> ResearchObserver
+```
+
