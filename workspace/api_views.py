@@ -2,7 +2,9 @@ from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.negotiation import DefaultContentNegotiation
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -15,10 +17,12 @@ from workspace.models import (
     ResearchGroup,
     ResearchTask,
 )
+from workspace.patterns.citations import CitationExporter, get_citation_strategy
 from workspace.permissions import IsGroupMember
 from workspace.serializers import (
     ExperimentLogSerializer,
     HealthCheckSerializer,
+    PaperCitationSerializer,
     PaperSerializer,
     ResearchGroupSerializer,
     ResearchTaskSerializer,
@@ -29,6 +33,13 @@ from workspace.services import (
     filter_tasks_queryset,
     is_group_member,
 )
+
+
+class CitationContentNegotiation(DefaultContentNegotiation):
+    """Select JSON renderer so ?format= can specify citation style instead."""
+
+    def select_renderer(self, request, renderers, format_suffix=None):
+        return (renderers[0], renderers[0].media_type)
 
 
 class HealthCheckView(APIView):
@@ -207,6 +218,48 @@ class PaperViewSet(viewsets.ModelViewSet):
         )
         self._ensure_group_membership(target_group)
         serializer.save()
+
+    def get_content_negotiator(self):
+        if getattr(self, "action", None) == "cite":
+            return CitationContentNegotiation()
+        return super().get_content_negotiator()
+
+    @extend_schema(
+        summary="Cite Paper",
+        description="Format a paper citation in BibTeX, APA, or IEEE style.",
+        parameters=[
+            OpenApiParameter(
+                name="format",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Citation format (bibtex, apa, or ieee). Defaults to bibtex.",
+                required=False,
+                enum=["bibtex", "apa", "ieee"],
+            ),
+        ],
+        responses={200: PaperCitationSerializer},
+        tags=["Papers"],
+    )
+    @action(detail=True, methods=["get"], url_path="cite")
+    def cite(self, request: Request, pk=None) -> Response:
+        """Return a formatted citation for the requested paper."""
+        paper = self.get_object()
+        raw_format = request.query_params.get("format")
+        format_name = raw_format.strip().lower() if raw_format else "bibtex"
+        try:
+            strategy = get_citation_strategy(format_name)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        citation = CitationExporter(strategy).export(paper)
+        return Response(
+            {
+                "paper_id": paper.id,
+                "format": format_name,
+                "citation": citation,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 @extend_schema_view(

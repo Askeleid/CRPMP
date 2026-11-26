@@ -77,6 +77,37 @@
       </div>
     </div>
 
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h2 class="h5 mb-0">Cite Paper</h2>
+        <form method="get" class="d-flex align-items-center gap-2">
+          <select
+            name="cite_format"
+            class="form-select form-select-sm"
+            aria-label="Citation format"
+            onchange="this.form.submit()"
+          >
+            {% for value, label in citation_formats %}
+              <option value="{{ value }}" {% if cite_format == value %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-outline-primary btn-sm">Format</button>
+        </form>
+      </div>
+      <div class="card-body">
+        <pre class="bg-dark text-light p-3 rounded mb-2 small overflow-auto"><code id="citation-text">{{ citation }}</code></pre>
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          onclick="navigator.clipboard.writeText(document.getElementById('citation-text').innerText)"
+        >
+          Copy Citation
+        </button>
+      </div>
+    </div>
+
     <div class="card shadow-sm">
       <div class="card-header bg-white">
         <h2 class="h5 mb-0">Add Experiment Log</h2>
